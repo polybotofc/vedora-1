@@ -1,0 +1,55 @@
+{
+  "serverRuntimeConfig": {
+    "backend": {}
+  },
+  "publicRuntimeConfig": {
+    "backend": {
+      "proxyEnabled": false,
+      "flags": {
+        "myAccountPage2016Enabled": true,
+        "catalogGenreFilterSupported": false,
+        "catalogPageLimit": 28,
+        "catalogSaleCountVisibleFromDetailsEndpoint": true,
+        "catalogDetailsPageResellerLimit": 10,
+        "avatarPageInventoryLimit": 10,
+        "friendsPageLimit": 25,
+        "settingsPageThemeSelectorEnabled": true,
+        "tradeWindowInventoryCollectibleLimit": 10,
+        "moneyPagePromotionTabVisible": false,
+        "gameGenreFilterMethod": "genre",
+        "gameGenreFilterSupported": true,
+        "3DRendersEnabled": true,
+        "avatarPageOutfitCreatedAtAvailable": true,
+        "catalogDetailsPageOwnersTabEnabled": true,
+        "showTicketBalace": true,
+        "accessoriesEnabled": true,
+        "userFeedEnabled": true,
+        "requireLoginThroughCookie": false,
+        "launchUsingEsURI": true,
+        "currencyExchangeEnabled": true,
+        "downloadPageEnabled": true,
+        "packagesEnabled": true,
+        "userProfileUserStatusEnabled": true,
+        "downloadGameClients": [
+          {
+            "imageUrl": "https://vedora.xyz/img/player.png",
+            "title": "Download the latest Vedora bootstrapper",
+            "url": "https://github.com/VedoraX/Vedora-Bootstrapper/releases"
+          },
+          {
+            "imageUrl": "https://vedora.xyz/img/Vedora.png",
+            "title": "Mobile clients",
+            "url": "https://vedora.xyz/download2"
+          },
+          {
+            "imageUrl": "https://vedora.xyz/img/studio.png",
+            "title": "Download the Vedora 2021 Studio for Windows",
+            "url": "https://setup.vedora.xyz/VedoraStudio2021.zip"
+          }
+        ]
+      },
+      "baseUrl": "https://vedora.xyz",
+      "apiFormat": "https://vedora.xyz/apisite/{0}{1}"
+    }
+  }
+}
