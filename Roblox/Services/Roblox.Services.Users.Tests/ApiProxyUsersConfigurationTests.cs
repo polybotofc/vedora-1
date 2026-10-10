@@ -1,0 +1,98 @@
+using System.Text.Json;
+
+namespace Roblox.Services.Users.Tests;
+
+public class ApiProxyUsersConfigurationTests
+{
+    [Fact]
+    public void ApiProxyConfig_RoutesUsersHostAndApisitePathToUsersCluster()
+    {
+        using var document = LoadApiProxyAppSettings();
+        var root = document.RootElement;
+        var routes = root.GetProperty("ReverseProxy").GetProperty("Routes");
+        var clusters = root.GetProperty("ReverseProxy").GetProperty("Clusters");
+
+        Assert.True(routes.TryGetProperty("users-host-route", out var hostRoute), "users-host-route should exist.");
+        Assert.Equal("users-cluster", hostRoute.GetProperty("ClusterId").GetString());
+        Assert.Equal("{**catch-all}", hostRoute.GetProperty("Match").GetProperty("Path").GetString());
+        Assert.Contains("users.vedora.xyz", ReadStringArray(hostRoute.GetProperty("Match").GetProperty("Hosts")));
+
+        Assert.True(routes.TryGetProperty("users-apisite-route", out var apisiteRoute), "users-apisite-route should exist.");
+        Assert.Equal("users-cluster", apisiteRoute.GetProperty("ClusterId").GetString());
+        Assert.Equal("/apisite/users/{**catch-all}", apisiteRoute.GetProperty("Match").GetProperty("Path").GetString());
+        // The apisite routes are host-agnostic: they match on path only so they
+        // work behind any public host (vedora.xyz, localhost, ...).
+        Assert.False(
+            apisiteRoute.GetProperty("Match").TryGetProperty("Hosts", out _),
+            "users-apisite-route must not restrict by host.");
+
+        Assert.True(clusters.TryGetProperty("users-cluster", out var usersCluster), "users-cluster should exist.");
+        Assert.Equal(
+            "http://127.0.0.1:5209",
+            usersCluster.GetProperty("Destinations").GetProperty("primary").GetProperty("Address").GetString());
+    }
+
+    [Fact]
+    public void ApiProxyConfig_DeclaresUsersRoutesAsInternalForwardedAuthTargets()
+    {
+        using var document = LoadApiProxyAppSettings();
+        var root = document.RootElement;
+
+        Assert.Contains("users.vedora.xyz", ReadStringArray(root.GetProperty("InternalServiceHosts")));
+
+        var matchingRoute = root.GetProperty("InternalServiceRoutes")
+            .EnumerateArray()
+            .FirstOrDefault(route =>
+                route.TryGetProperty("Hosts", out var hosts) &&
+                ReadStringArray(hosts).Contains("vedora.xyz") &&
+                route.TryGetProperty("PathPrefixes", out var prefixes) &&
+                ReadStringArray(prefixes).Contains("/apisite/users/"));
+
+        Assert.NotEqual(JsonValueKind.Undefined, matchingRoute.ValueKind);
+    }
+
+    [Fact]
+    public void ApiProxyConfig_DeclaresEveryApisiteServiceRouteAsInternalForwardedAuthTarget()
+    {
+        using var document = LoadApiProxyAppSettings();
+        var root = document.RootElement;
+
+        var declaredPrefixes = root.GetProperty("InternalServiceRoutes")
+            .EnumerateArray()
+            .Where(route => route.TryGetProperty("Hosts", out var hosts) &&
+                            ReadStringArray(hosts).Contains("vedora.xyz"))
+            .SelectMany(route => ReadStringArray(route.GetProperty("PathPrefixes")))
+            .ToHashSet(StringComparer.Ordinal);
+
+        // The API proxy only forwards the internal auth/identity headers (which every
+        // /apisite service needs to build a session) for paths listed here. Any apisite
+        // service route that is missing will reach its service with no session and
+        // return 401.
+        foreach (var prefix in new[] { "/apisite/users/", "/apisite/games/", "/apisite/avatar/", "/apisite/thumbnails/" })
+        {
+            Assert.Contains(prefix, declaredPrefixes);
+        }
+    }
+
+    private static JsonDocument LoadApiProxyAppSettings()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory != null)
+        {
+            var candidate = Path.Combine(directory.FullName, "Roblox.ApiProxy", "appsettings.json");
+            if (File.Exists(candidate))
+            {
+                return JsonDocument.Parse(File.ReadAllText(candidate));
+            }
+
+            directory = directory.Parent;
+        }
+
+        throw new FileNotFoundException("Could not find Roblox.ApiProxy/appsettings.json for proxy configuration tests.");
+    }
+
+    private static IReadOnlyList<string> ReadStringArray(JsonElement array)
+    {
+        return array.EnumerateArray().Select(element => element.GetString() ?? string.Empty).ToList();
+    }
+}
